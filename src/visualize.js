@@ -852,13 +852,3 @@
       return Keen.Visualization.visuals;
     }
   };
-
-  // Expose utils
-  _extend(Keen.utils, {
-    prettyNumber: _pretty_number,
-    loadScript: _load_script,
-    loadStyle: _load_style
-  });
-
-  // Set flag for script loading
-  Keen.loaded = false;
