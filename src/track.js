@@ -11,27 +11,11 @@
   Keen.prototype.addEvents = function() {
     var isSingular = typeof arguments[0] === 'string';
     if(isSingular) {
-      this._addMultipleEventsToOneCollection(arguments);
+      _addMultipleEventsToOneCollection.call(this, arguments);
     } else {
-      this._addEventsToMultipleCollections(arguments);
+      _addEventsToMultipleCollections.call(this, arguments);
     }
     // _uploadEvent.apply(this, arguments);
-  };
-
-  Keen.prototype._addMultipleEventsToOneCollection = function(eventCollection, payloadArray, success, error) {
-    _each(payloadArray, function (payload) {
-      _uploadEvent.apply(this, [eventCollection, payload, success, error]);
-    }.bind(this));
-  };
-
-  Keen.prototype._addEventsToMultipleCollections = function() {
-    var payloads = Array.prototype.slice.call(arguments),
-        self     = this;
-    _each(payloads, function(item, eventCollection) {
-      _each(item, function(payload) {
-        _uploadEvent.apply(self, [eventCollection, payload]);
-      });
-    });
   };
 
   Keen.prototype.queueEvent = function(eventCollection, payload, timeout) { 
@@ -49,7 +33,7 @@
     payloads = hasTimeout ? args.slice(0, args.length - 1) : args
 
     setTimeout(function() {
-      this._addEventsToMultipleCollections(payloads);
+      _addEventsToMultipleCollections.call(this, payloads);
     }.bind(this), timeout);
 
   };
@@ -121,6 +105,22 @@
 
   // Private for Keen IO Tracker JS
   // -------------------------------
+
+  function _addMultipleEventsToOneCollection (eventCollection, payloadArray, success, error) {
+    _each(payloadArray, function (payload) {
+      _uploadEvent.apply(this, [eventCollection, payload, success, error]);
+    }.bind(this));
+  }
+
+  function _addEventsToMultipleCollections () {
+    var payloads = Array.prototype.slice.call(arguments),
+        self     = this;
+    _each(payloads, function(item, eventCollection) {
+      _each(item, function(payload) {
+        _uploadEvent.apply(self, [eventCollection, payload]);
+      });
+    });
+  }
 
   function _uploadEvent(eventCollection, payload, success, error) {
     var url = _build_url.apply(this, ['/events/' + eventCollection]);
