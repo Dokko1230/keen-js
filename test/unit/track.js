@@ -41,6 +41,22 @@ describe("Keen tracking methods", function() {
 
         });
 
+        it("should post to the API using xhr and addEvents where CORS is supported", function() {
+
+          var callbacks = [sinon.spy(), sinon.spy()];
+          this.respondWith(200, keenHelper.responses.success);
+          // keen.addEvents("collectionName", [{ a : 1 }, { a : 2 }])
+          this.project.addEvents(keenHelper.collection, [keenHelper.properties, keenHelper.properties], callbacks[0], callbacks[1]);
+          this.server.respond();
+
+          expect(this.server.requests[0].requestBody)
+            .to.equal(JSON.stringify(keenHelper.properties));
+          expect(callbacks[0].calledOnce).to.be.ok;
+          expect(callbacks[0].calledWith(JSON.parse(keenHelper.responses.success))).to.be.ok;
+          expect(callbacks[1].calledOnce).not.to.be.ok;
+
+        });
+
         it("should call the error callback on error", function() {
 
           var callbacks = [sinon.spy(), sinon.spy()];
