@@ -11,6 +11,14 @@
   [x] move google defaults into adapter
   [x] set default lib+chart combos for types
 
+  [x] set up sortGroups and sortInterval
+  [x] set up orderBy
+  [x] write tests for sort/order methods
+
+  [x] _runLabelMapping re-runs parse(), overwrite modifications
+  [ ] _runOrderBy re-runs parse(), overwrite modifications
+
+  [x] update color palette
   [ ] update c3.js and chart.js adapters
   [ ] build example pages for adapters
 
@@ -66,9 +74,15 @@ _extend(Keen.Dataviz, {
   },
   defaults: {
     colors: [
-    "#00afd7", "#f35757", "#f0ad4e", "#8383c6", "#f9845b", "#49c5b1", "#2a99d1", "#aacc85", "#ba7fab"
-    /* Todo: add light/dark derivatives */
-    ]
+    /* teal      red        yellow     purple     orange     mint       blue       green      lavender */
+    // norm
+      "#00bbde", "#fe6672", "#eeb058", "#8a8ad6", "#ff855c", "#00cfbb", "#5a9eed", "#73d483", "#c879bb",
+    // dark
+      "#00a1bf", "#df545f", "#d29847", "#7373bc", "#e0704b", "#00b2a1", "#4988d0", "5ebb6d", "#b163a4",
+    // light
+      "#24c9e8", "#ff7e88", "#f4bd70", "#9a9adf", "#ff9876", "#24dcca", "71aef3", "#86de95", "#d68ac9"
+    ],
+    orderBy: "timeframe.start"
   },
   dependencies: {
     loading: 0,
@@ -98,10 +112,6 @@ Keen.Dataviz.prototype.data = function(data){
   } else {
     this.parseRawData(data);
   }
-  this
-    .call(_runColorMapping)
-    .call(_runLabelMapping)
-    .call(_runLabelReplacement);
   return this;
 };
 
@@ -119,28 +129,25 @@ Keen.Dataviz.prototype.parseRequest = function(req){
   return this;
 };
 
-Keen.Dataviz.prototype.sort = function(str){
-  if (!arguments.length) return this.view.attributes.sort;
-  this.view.attributes.sort = (str ? String(str) : null);
-  _sortDataset.call(this, this.view.attributes.sort);
+Keen.Dataviz.prototype.orderBy = function(str){
+  if (!arguments.length) return this.view.attributes.orderBy;
+  this.view.attributes.orderBy = (str ? String(str) : Keen.Dataviz.defaults.orderBy);
+  _runOrderBy.call(this);
   return this;
 };
-// Keen.Dataviz.prototype.sortIndex("desc");
-// Keen.Dataviz.prototype.sortValues("asc");
 
-function _sortDataset(str){
-  console.log(this.dataset.schema);
-  // if dataset[0].length > 2 ==> cat-chronological ?
-  // this.dataset.sortColumnsBySum("asc");
-  // this.dataset.sortRowsByColumn("asc", 0);
-  return;
-}
-
-// Keen.Dataviz.prototype.intervalIndex = function(str){
-//   if (!arguments.length) return this.view.attributes.intervalIndex;
-//   this.view.attributes.intervalIndex = (str ? String(str) : null);
-//   return this;
-// };
+Keen.Dataviz.prototype.sortGroups = function(str){
+  if (!arguments.length) return this.view.attributes.sortGroups;
+  this.view.attributes.sortGroups = (str ? String(str) : null);
+  _runSortGroups.call(this);
+  return this;
+};
+Keen.Dataviz.prototype.sortIntervals = function(str){
+  if (!arguments.length) return this.view.attributes.sortIntervals;
+  this.view.attributes.sortIntervals = (str ? String(str) : null);
+  _runSortIntervals.call(this);
+  return this;
+};
 
 
 // ------------------------------
@@ -186,13 +193,9 @@ Keen.Dataviz.prototype.labels = function(arr){
 
 Keen.Dataviz.prototype.labelMapping = function(obj){
   if (!arguments.length) return this.view.attributes.labelMapping;
-  var self = this;
-  self.view.attributes.labelMapping = {};
-  _each(obj, function(prop, key){
-    self.view.attributes.labelMapping[key] = (prop? prop.trim() : null);
-  });
-  _runLabelMapping.call(self);
-  return self;
+  this.view.attributes.labelMapping = (obj ? obj : null);
+  _runLabelMapping.call(this);
+  return this;
 };
 
 Keen.Dataviz.prototype.height = function(int){
@@ -300,6 +303,7 @@ Keen.Dataviz.prototype.initialize = function(){
 
 Keen.Dataviz.prototype.render = function(el){
   var actions = _getAdapterActions.call(this);
+  _applyPostProcessing.call(this);
   if (el) this.el(el);
   if (!this.view._initialized) this.initialize();
   if (this.el() && actions.render) actions.render.apply(this, arguments);
@@ -309,6 +313,7 @@ Keen.Dataviz.prototype.render = function(el){
 
 Keen.Dataviz.prototype.update = function(){
   var actions = _getAdapterActions.call(this);
+  _applyPostProcessing.call(this);
   if (actions.update) {
     actions.update.apply(this, arguments);
   } else if (actions.render) {
@@ -338,12 +343,29 @@ Keen.Dataviz.prototype.error = function(){
 function _getAdapterActions(){
   var map = _extend({}, Keen.Dataviz.dataTypeMap),
       dataType = this.dataType(),
-      library,
-      chartType;
+      library = this.library(),
+      chartType = this.chartType() || this.defaultChartType();
 
-  library = this.library() || map[dataType].library,
-  chartType = this.chartType() || this.defaultChartType() || map[dataType].chartType;
-  return Keen.Dataviz.libraries[library][chartType];
+  // Backups
+  if (!library && map[dataType]) {
+    library = map[dataType].library;
+  }
+  if (!chartType && map[dataType]) {
+    chartType = map[dataType].chartType;
+  }
+
+  // Return if found
+  return (library && chartType) ? Keen.Dataviz.libraries[library][chartType] : {};
+}
+
+function _applyPostProcessing(){
+  this
+    //.call(_runOrderBy)
+    .call(_runLabelMapping)
+    .call(_runLabelReplacement)
+    .call(_runColorMapping)
+    .call(_runSortGroups)
+    .call(_runSortIntervals);
 }
 
 
@@ -562,31 +584,34 @@ function _runColorMapping(){
 }
 
 function _runLabelMapping(){
-  var self = this;
-  var labelMap = this.labelMapping() || null,
-      schema = this.dataset.schema() || {};
+  var self = this,
+      labelMap = this.labelMapping(),
+      schema = this.dataset.schema() || {},
+      dt = this.dataType() || "";
 
   if (labelMap) {
-    if (schema.unpack) {
-      if (schema.unpack['index']) {
-        self.dataset.meta.schema.unpack['index'].replace = labelMap;
-      }
-      if (schema.unpack['label']) {
-        self.dataset.meta.schema.unpack['label'].replace = labelMap;
-      }
+    if (dt.indexOf("chronological") > -1 || (schema.unpack && self.dataset.output()[0].length > 2)) {
+      // loop over header cells
+      each(self.dataset.output()[0], function(c, i){
+        if (i > 0) {
+          //console.log('Mod header cell', labelMap[c] || c, i);
+          self.dataset.data.output[0][i] = labelMap[c] || c;
+        }
+      });
     }
-    if (schema.select) {
-      _each(schema.select, function(v, i){
-        self.dataset.meta.schema.select[i].replace = labelMap;
+    else if (schema.select && self.dataset.output()[0].length === 2) {
+      // modify column 0
+      self.dataset.modifyColumn(0, function(c, i){
+        //console.log('Mod column', labelMap[c] || c);
+        return labelMap[c] || c;
       });
     }
   }
-  self.dataset.parse(self.dataset.input(), self.dataset.schema());
 }
 
 function _runLabelReplacement(){
   var labelSet = this.labels() || null,
-      schema = this.dataset.schema || {};
+      schema = this.dataset.schema() || {};
   if (labelSet) {
     if (schema.unpack && dataset.output()[0].length == 2) {
       _each(dataset.output(), function(row,i){
@@ -598,11 +623,54 @@ function _runLabelReplacement(){
     if (schema.unpack && dataset.output()[0].length > 2) {
       _each(dataset.output()[0], function(cell,i){
         if (i > 0 && labelSet[i-1]) {
-          dataset.output()[0][i] = labelSetg[i-1];
+          dataset.output()[0][i] = labelSet[i-1];
         }
       });
     }
   }
+}
+
+function _runOrderBy(){
+  var self = this,
+      root = this.dataset.meta.schema || this.dataset.meta.unpack,
+      newOrder = this.orderBy().split(".").join(Keen.Dataset.defaults.delimeter);
+  // Replace in schema and re-run dataset.parse()
+  each(root, function(def, i){
+    // update 'select' configs
+    if (i === "select" && def instanceof Array) {
+      each(def, function(c, j){
+        if (c.path.indexOf("timeframe -> ") > -1) {
+          self.dataset.meta.schema[i][j].path = newOrder;
+        }
+      });
+    }
+    // update 'unpack' configs
+    else if (i === "unpack" && typeof def === "object") {
+      self.dataset.meta.schema[i]['index'].path = newOrder;
+    }
+  });
+  this.dataset.parse();
+}
+
+function _runSortGroups(){
+  var dt = this.dataType();
+  if (!this.sortGroups()) return;
+  if ((dt && dt.indexOf("chronological") > -1) || this.data()[0].length > 2) {
+    // Sort columns by Sum (n values)
+    this.dataset.sortColumns(this.sortGroups(), this.dataset.getColumnSum);
+  }
+  else if (dt && (dt.indexOf("cat-") > -1 || dt.indexOf("categorical") > -1)) {
+    // Sort rows by Sum (1 value)
+    this.dataset.sortRows(this.sortGroups(), this.dataset.getRowSum);
+  }
+  return;
+}
+
+function _runSortIntervals(){
+  if (!this.sortIntervals()) return;
+  // Sort rows by index
+  this.dataset.sortRows(this.sortIntervals());
+  return;
 }
 
 function _getDefaultTitle(req){
@@ -708,10 +776,17 @@ function _getQueryDataType(query){
 function _parseRawData(response){
   var self = this,
       schema = {},
+      orderBy,
+      delimeter,
+      indexTarget,
       labelSet,
       labelMap,
       dataType,
       dataset;
+
+  orderBy = self.orderBy() ? self.orderBy() : Keen.Dataviz.defaults.orderBy;
+  delimeter = Keen.Dataset.defaults.delimeter;
+  indexTarget = orderBy.split(".").join(delimeter);
 
   labelSet = self.labels() || null;
   labelMap = self.labelMapping() || null;
@@ -748,22 +823,19 @@ function _parseRawData(response){
         records: "result",
         select: [
           {
-            path: "timeframe -> start",
+            path: indexTarget,
             type: "date"
           },
           {
             path: "value",
             type: "number",
-            format: "10",
-            replace: {
-              null: 0
-            }
+            format: "10"
+            // ,
+            // replace: {
+            //   null: 0
+            // }
           }
-        ],
-        sort: {
-          column: 0,
-          order: 'asc'
-        }
+        ]
       }
     }
 
@@ -773,11 +845,7 @@ function _parseRawData(response){
       dataType = "categorical";
       schema = {
         records: "result",
-        select: [],
-        sort: {
-          column: 1,
-          order: "desc"
-        }
+        select: []
       };
       for (var key in response.result[0]){
         if (response.result[0].hasOwnProperty(key) && key !== "result"){
@@ -802,19 +870,17 @@ function _parseRawData(response){
         records: "result",
         unpack: {
           index: {
-            path: "timeframe -> start",
+            path: indexTarget,
             type: "date"
           },
           value: {
             path: "value -> result",
-            type: "number",
-            replace: {
-              null: 0
-            }
+            type: "number"
+            // ,
+            // replace: {
+            //   null: 0
+            // }
           }
-        },
-        sort: {
-          value: "desc"
         }
       }
       for (var key in response.result[0].value[0]){
@@ -851,21 +917,21 @@ function _parseRawData(response){
 
   // Key-value label mapping
   // _runLabelMapping.call(this);
-  if (labelMap) {
-    if (schema.unpack) {
-      if (schema.unpack['index']) {
-        schema.unpack['index'].replace = labelMap;
-      }
-      if (schema.unpack['label']) {
-        schema.unpack['label'].replace = labelMap;
-      }
-    }
-    if (schema.select) {
-      _each(schema.select, function(v, i){
-        schema.select[i].replace = labelMap;
-      });
-    }
-  }
+  // if (labelMap) {
+  //   if (schema.unpack) {
+  //     if (schema.unpack['index']) {
+  //       schema.unpack['index'].replace = labelMap;
+  //     }
+  //     if (schema.unpack['label']) {
+  //       schema.unpack['label'].replace = labelMap;
+  //     }
+  //   }
+  //   if (schema.select) {
+  //     _each(schema.select, function(v, i){
+  //       schema.select[i].replace = labelMap;
+  //     });
+  //   }
+  // }
 
   dataset = new Keen.Dataset(response, schema);
 

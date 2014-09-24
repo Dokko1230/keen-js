@@ -1,7 +1,7 @@
 describe("Keen.Dataset", function(){
 
   beforeEach(function(){
-    this.ds = new Keen.Dataset({ result: 23456 }, {
+    this.ds = new Keen.Dataset().parse({ result: 23456 }, {
       records: "",
       select: true
     });
@@ -18,11 +18,12 @@ describe("Keen.Dataset", function(){
       expect(this.ds.schema()).to.deep.equal({ records: "", select: true });
     });
     it("should output the correct values", function(){
-      expect(this.ds.output()).to.be.an("array");
-      expect(this.ds.output()[0][0]).to.be.a("string")
-        .and.to.eql("result");
-      expect(this.ds.output()[1][0]).to.be.a("number")
-        .and.to.eql(23456);
+      expect(this.ds.output()).to.be.an("array")
+        .and.to.be.of.length(2);
+      expect(this.ds.output()[0][0]).to.eql("label");
+      expect(this.ds.output()[0][1]).to.eql("value");
+      expect(this.ds.output()[1][0]).to.eql("result");
+      expect(this.ds.output()[1][1]).to.eql(23456);
     });
   });
 
@@ -30,7 +31,7 @@ describe("Keen.Dataset", function(){
 
     it("metric.json", function(done){
       $.getJSON("./unit/data/metric.json", function(response) {
-        var dataset = new Keen.Dataset(response, {
+        var dataset = new Keen.Dataset().parse(response, {
           records: "",
           select: true
           // select: [
@@ -51,8 +52,10 @@ describe("Keen.Dataset", function(){
 
         expect(dataset.output()).to.be.an("array")
           .and.to.be.of.length(2);
-        expect(dataset.output()[0][0]).to.eql("result");
-        expect(dataset.output()[1][0]).to.eql(2450);
+        expect(dataset.output()[0][0]).to.eql("label");
+        expect(dataset.output()[0][1]).to.eql("value");
+        expect(dataset.output()[1][0]).to.eql("result");
+        expect(dataset.output()[1][1]).to.eql(2450);
         //expect(dataset.output()[0][0]).to.eql("Metric");
         //expect(dataset.output()[1][0]).to.eql("$2,450.00 per month");
         done();
@@ -61,21 +64,11 @@ describe("Keen.Dataset", function(){
 
     it("groupby.json", function(done){
       $.getJSON("./unit/data/groupby.json", function(response) {
-        var dataset = new Keen.Dataset(response, {
+        var dataset = new Keen.Dataset().parse(response, {
           records: "result",
-          unpack: {
-            value: "result",
-            label: {
-              path: "page",
-              type: "string",
-              replace: {
-                "http://dustinlarimer.com/": "Home"
-              }
-            }
-          }
+          select: true
         });
-        console.log('groupby.json', dataset);
-
+        console.log("groupby.json", dataset);
         expect(dataset.output()).to.be.an("array")
           .and.to.be.of.length(56);
         expect(dataset.output()[0]).to.be.of.length(2);
@@ -87,7 +80,7 @@ describe("Keen.Dataset", function(){
 
     it("groupBy-boolean.json", function(done){
       $.getJSON("./unit/data/groupBy-boolean.json", function(response) {
-        var dataset = new Keen.Dataset(response, {
+        var dataset = new Keen.Dataset().parse(response, {
           records: "result",
           select: [
             {
@@ -112,7 +105,7 @@ describe("Keen.Dataset", function(){
 
     it("interval-groupBy-empties.json", function(done){
       $.getJSON("./unit/data/interval-groupBy-empties.json", function(response) {
-        var dataset = new Keen.Dataset(response, {
+        var dataset = new Keen.Dataset().parse(response, {
           records: "result",
           unpack: {
             index: {
@@ -143,7 +136,7 @@ describe("Keen.Dataset", function(){
 
     it("interval-groupBy-boolean.json", function(done){
       $.getJSON("./unit/data/interval-groupBy-boolean.json", function(response) {
-        var dataset = new Keen.Dataset(response, {
+        var dataset = new Keen.Dataset().parse(response, {
           records: "result",
           unpack: {
             index: {
@@ -169,7 +162,7 @@ describe("Keen.Dataset", function(){
 
     it("interval-groupBy-nulls.json", function(done){
       $.getJSON("./unit/data/interval-groupBy-nulls.json", function(response) {
-        var dataset = new Keen.Dataset(response, {
+        var dataset = new Keen.Dataset().parse(response, {
           records: "result",
           unpack: {
             index: {
@@ -205,7 +198,7 @@ describe("Keen.Dataset", function(){
 
     it("extraction.json 1", function(done){
       $.getJSON("./unit/data/extraction.json", function(response) {
-        var dataset = new Keen.Dataset(response, {
+        var dataset = new Keen.Dataset().parse(response, {
           records: "result",
           select: [
             {
@@ -240,7 +233,7 @@ describe("Keen.Dataset", function(){
 
     it("extraction.json 2", function(done){
       $.getJSON("./unit/data/extraction.json", function(response) {
-        var dataset = new Keen.Dataset(response, {
+        var dataset = new Keen.Dataset().parse(response, {
           records: "result",
           select: [
             {
@@ -275,7 +268,7 @@ describe("Keen.Dataset", function(){
 
     it("extraction-uneven.json", function(done){
       $.getJSON("./unit/data/extraction-uneven.json", function(response) {
-        var dataset = new Keen.Dataset(response, {
+        var dataset = new Keen.Dataset().parse(response, {
           records: "result",
           select: [
             {
@@ -301,18 +294,16 @@ describe("Keen.Dataset", function(){
 
     it("extraction-uneven.json SELECT ALL", function(done){
       $.getJSON("./unit/data/extraction-uneven.json", function(response) {
-        var dataset = new Keen.Dataset(response, {
+        var dataset = new Keen.Dataset().parse(response, {
           records: "result",
           select: true
         });
         dataset.sortRows("asc");
         console.log('extraction-uneven.json SELECT ALL', dataset);
-
         expect(dataset.output()).to.be.an("array")
           .and.to.be.of.length(response.result.length+1);
         expect(dataset.output()[0]).to.be.of.length(7);
         expect(dataset.output()[0][0]).to.eql("keen.timestamp");
-        //expect(dataset.output()[4][1]).to.be.eql("2014-02-05T21:39:12.155Z");
         done();
       });
     });
@@ -320,7 +311,7 @@ describe("Keen.Dataset", function(){
 
     it("funnel.json", function(done){
       $.getJSON("./unit/data/funnel.json", function(response) {
-        var dataset = new Keen.Dataset(response, {
+        var dataset = new Keen.Dataset().parse(response, {
           records: "",
           unpack: {
             index: {
@@ -356,20 +347,12 @@ describe("Keen.Dataset", function(){
 
     it("interval-double-groupBy.json", function(done){
       $.getJSON("./unit/data/interval-double-groupBy.json", function(response) {
-        var dataset = new Keen.Dataset(response, {
+        var dataset = new Keen.Dataset().parse(response, {
           records: "result",
           unpack: {
             index: {
               path: "timeframe -> start",
-              type: "date",
-              //label: "Event",
-              /*replace: {
-                "pageview": "Visit",
-                "signup": "Join",
-                "return-login": "Return",
-                "create-post": "Contrib",
-                "send-invite": "Invite"
-              }*/
+              type: "date"
             },
             value: {
               path: "value -> result",
@@ -378,9 +361,7 @@ describe("Keen.Dataset", function(){
             label: {
               path: "value -> first.property",
               type: "string",
-              replace: {
-                //"/": "Home"
-              }
+              replace: {}
             }
           }
         });
@@ -612,6 +593,147 @@ describe("Keen.Dataset", function(){
         .and.to.have.length(2);
       expect(this.ds.output()[0][1]).to.be.a("string")
         .and.to.eql("B");
+    });
+  });
+
+  describe("#sum", function(){
+    it("should return the sum for an unbounded range", function(){
+      var sum = this.ds.sum([10,10,10,10,10]);
+      expect(sum).to.eql(50);
+    });
+    it("should return the sum for a partially bounded range", function(){
+      var sum = this.ds.sum([10,10,10,10,10], 1);
+      expect(sum).to.eql(40);
+    });
+    it("should return the sum for a fully bounded range", function(){
+      var sum = this.ds.sum([10,10,10,10,10], 1, 3);
+      expect(sum).to.eql(30);
+    });
+  });
+
+  describe("#getRowIndex", function(){
+    it("should return the first value of a given row (array)", function(){
+      expect(this.ds.getRowIndex(["Index", 0, 1, 2, 3])).to.eql("Index");
+    });
+  });
+  describe("#getRowSum", function(){
+    it("should return the sum of values in a given row (array), excluding the first value", function(){
+      var sum = this.ds.getRowSum([2, 0, 1, 2, 3]);
+      expect(sum).to.eql(6);
+    });
+  });
+
+  describe("#getColumnLabel", function(){
+    it("should return the first value of a given column (array)", function(){
+      expect(this.ds.getColumnLabel(["Series A", 1, 2, 3, 4,])).to.eql("Series A");
+    });
+  });
+  describe("#getColumnSum", function(){
+    it("should return the sum of values in a given column (array), excluding the first value", function(){
+      var sum = this.ds.getRowSum([2, 0, 1, 2, 3]);
+      expect(sum).to.eql(6);
+    });
+  });
+
+  describe("#sortRows", function(){
+    beforeEach(function(){
+      this.ds.output([
+        ["Index", "A", "B", "C"],
+        [0, 1, 5, 10],
+        [1, 2, 10, 20],
+        [2, 4, 20, 40]
+      ]);
+    });
+    it("should sort rows properly, without calling a comparator", function(){
+      expect(this.ds.sortRows("asc").output()[1][0]).to.eql(0);
+      expect(this.ds.sortRows("desc").output()[1][0]).to.eql(2);
+    });
+    it("should sort rows properly, when calling a general comparator (sum)", function(){
+      expect(this.ds
+        .sortRows("asc", this.ds.sum, 1)
+        .output()[1][0])
+      .to.eql(0);
+      expect(this.ds
+        .sortRows("desc", this.ds.sum, 1)
+        .output()[1][0])
+      .to.eql(2);
+    });
+    it("should sort rows ascending, when calling a specific comparator (getRowSum)", function(){
+      expect(this.ds
+        .sortRows("asc", this.ds.getRowSum)
+        .output()[1][0])
+      .to.eql(0);
+      expect(this.ds
+        .sortRows("desc", this.ds.getRowSum)
+        .output()[1][0])
+      .to.eql(2);
+    });
+    it("should sort rows ascending, when calling a custom comparator", function(){
+      var demo = function(row){
+        return this.getRowSum(row);
+      };
+      expect(this.ds
+        .sortRows("asc", demo)
+        .output()[1][0])
+      .to.eql(0);
+      expect(this.ds
+        .sortRows("desc", demo)
+        .output()[1][0])
+      .to.eql(2);
+    });
+  });
+
+  describe("#sortColumns", function(){
+    beforeEach(function(){
+      this.ds.output([
+        ["Index", "A", "B", "C"],
+        [0, 1, 5, 10],
+        [1, 2, 10, 20],
+        [2, 4, 20, 40]
+      ]);
+    });
+    it("should sort columns properly, without calling a comparator", function(){
+      expect(this.ds
+        .sortColumns("asc")
+        .output()[0][1])
+      .to.eql("A");
+      expect(this.ds
+        .sortColumns("desc")
+        .output()[0][1])
+      .to.eql("C");
+    });
+    it("should sort columns properly, when calling a general comparator (sum)", function(){
+      expect(this.ds
+        .sortColumns("asc", this.ds.sum, 1)
+        .output()[0][1])
+      .to.eql("A");
+      expect(this.ds
+        .sortColumns("desc", this.ds.sum, 1)
+        .output()[0][1])
+      .to.eql("C");
+    });
+    it("should sort columns ascending, when calling a specific comparator (getColumnSum)", function(){
+      expect(this.ds
+        .sortColumns("asc", this.ds.getColumnSum)
+        .output()[0][1])
+      .to.eql("A");
+      expect(this.ds
+        .sortColumns("desc", this.ds.getColumnSum)
+        .output()[0][1])
+      .to.eql("C");
+    });
+    it("should sort columns ascending, when calling a custom comparator", function(){
+      var demo = function(row){
+        return this.getColumnSum(row);
+      };
+      expect(this.ds
+        .sortColumns("asc", demo)
+        .output()[0][1])
+      .to.eql("A");
+      expect(this.ds
+        .sortColumns("desc", demo)
+        .output()[0][1])
+      .to.eql("C");
     });
   });
 
