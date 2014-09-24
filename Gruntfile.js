@@ -24,6 +24,22 @@ module.exports = function(grunt) {
         }
       },
 
+      dataset: {
+        src: [
+          "src/dataset/index.js",
+          "src/dataset/**/*.js"
+        ],
+        dest: ".tmp/dataset.js"
+      },
+
+      dataviz: {
+        src: [
+          "src/dataviz/index.js",
+          "src/dataviz/**/*.js"
+        ],
+        dest: ".tmp/dataviz.js"
+      },
+
       // Build complete version
       all: {
         src: [
@@ -31,15 +47,20 @@ module.exports = function(grunt) {
           , "src/core.js"
           , "src/track.js"
           , "src/query.js"
+
           , "src/lib/base64.js"
           , "src/lib/json2.js"
-          , "src/lib/keen-dataform.js"
+          //, "src/lib/keen-dataform.js"
           , "src/lib/keen-domready.js"
           , "src/lib/keen-spinner.js"
-          , "src/visualize.js"
+
+          , ".tmp/dataset.js"
+          , "src/dataviz.js"
+          , "src/visualization.js"
+
           , "src/plugins/keen-googlecharts.js"
-          , "src/plugins/keen-c3.js"
-          , "src/plugins/keen-chart.js"
+          //, "src/plugins/keen-c3.js"
+          //, "src/plugins/keen-chart.js"
           , "src/plugins/keen-widgets.js"
           , "src/async.js"
           , "src/_outro.js"
@@ -60,6 +81,20 @@ module.exports = function(grunt) {
           , "src/_outro.js"
         ],
         dest: "dist/<%= pkg.name %>-tracker.js"
+      },
+
+      // Build unit tests
+      test: {
+        src: [
+            "test/unit/core.js"
+          , "test/unit/track.js"
+          , "test/unit/query.js"
+          , "test/unit/dataviz.js"
+          , "test/unit/dataset.js"
+          , "test/unit/visualization.js"
+          , "test/unit/utils.js"
+        ],
+        dest: "test/keen-unit-all.js"
       },
 
       plugin_googlecharts: {
@@ -97,6 +132,10 @@ module.exports = function(grunt) {
       javascript: {
         files: "src/**/*.js",
         tasks: [ "concat", "uglify" ]
+      },
+      tests: {
+        files: "test/unit/**/*.js",
+        tasks: [ "concat" ]
       }
     },
 
