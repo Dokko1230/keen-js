@@ -8,6 +8,52 @@
     _uploadEvent.apply(this, arguments);
   };
 
+  Keen.prototype.addEvents = function() {
+    var isSingular = typeof arguments[0] === 'string';
+    if(isSingular) {
+      this._addMultipleEventsToOneCollection(arguments);
+    } else {
+      this._addEventsToMultipleCollections(arguments);
+    }
+    // _uploadEvent.apply(this, arguments);
+  };
+
+  Keen.prototype._addMultipleEventsToOneCollection = function(eventCollection, payloadArray, success, error) {
+    _each(payloadArray, function (payload) {
+      _uploadEvent.apply(this, [eventCollection, payload, success, error]);
+    }.bind(this));
+  };
+
+  Keen.prototype._addEventsToMultipleCollections = function() {
+    var payloads = Array.prototype.slice.call(arguments),
+        self     = this;
+    _each(payloads, function(item, eventCollection) {
+      _each(item, function(payload) {
+        _uploadEvent.apply(self, [eventCollection, payload]);
+      });
+    });
+  };
+
+  Keen.prototype.queueEvent = function(eventCollection, payload, timeout) { 
+    timeout = timeout || 3000;
+    setTimeout(function() {
+      this.addEvent(eventCollection, payload);
+    }.bind(this), timeout);
+  };
+
+  Keen.prototype.queueEvents = function() {
+    var args = Array.prototype.slice.call(arguments),
+        hasTimeout = typeof args[args.length - 1] === 'number',
+        timeout, payloads;
+    timeout = hasTimeout ? args[args.length - 1] : 3000;
+    payloads = hasTimeout ? args.slice(0, args.length - 1) : args
+
+    setTimeout(function() {
+      this._addEventsToMultipleCollections(payloads);
+    }.bind(this), timeout);
+
+  };
+
   Keen.prototype.trackExternalLink = function(jsEvent, eventCollection, payload, timeout, timeoutCallback){
 
     var evt = jsEvent,
